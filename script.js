@@ -7,6 +7,8 @@ var gamePos = [
 	['', '', '', '', '', '', '']
 ]
 var level = 1;
+var filledTubesAmount;
+var finishedTubes = 0;
 var difficulties = [
 	{ tubes: 2, colors: ['orange'], levels: [1] },
 	{
@@ -38,6 +40,7 @@ var levelDifficulties = [
 var difficulty = difficulties[0]
 var selectedBall;
 function newGame(lvl = level) {
+    finishedTubes = 0;
 	level = lvl;
 	$('.level').innerText = level;
 	//create tubes
@@ -151,6 +154,7 @@ function newGame(lvl = level) {
 	if (levelDifficulties[lvl - 1]['tubes'] > 3) gameFilledTubes = levelDifficulties[lvl - 1]['tubes'] - 2;
 	else if (levelDifficulties[lvl - 1]['tubes'] == 3) gameFilledTubes = levelDifficulties[lvl - 1]['tubes'] - 1;
 	else gameFilledTubes = levelDifficulties[lvl - 1]['tubes'];
+    filledTubesAmount = gameFilledTubes
 	createGame(levelDifficulties[lvl - 1]['colors'], gameFilledTubes, levelDifficulties[lvl - 1]['specialCase'] == 'special-8heighttube' ? 8 : 4)
 	levelDifficulties[lvl - 1]
 }
@@ -342,7 +346,117 @@ function createGame(colors, filledTubesNum, tubeHeight = 4) {
 	}
 }
 $('.topbarbtn.reset').addEventListener('click', e => {
-	createGame();
+    newGame(level)
+})
+$('.topbarbtn.undo').addEventListener('click', e => {
+})
+$('.topbarbtn.extratube').addEventListener('click', e => {
+	//create one tube
+	let tube = document.createElement('div');
+	tube.classList.add('tube');
+	tube.innerHTML =
+		`
+<img src="images/tube.png" alt="Tube" draggable="false">
+<div class="ball1"></div>
+<div class="ball2"></div>
+<div class="ball3"></div>
+<div class="ball4"></div>
+`;
+	$('.game_container').appendChild(tube);
+	tube.addEventListener('click', e => {
+		let topBallPosition;
+		for (var i in range(levelDifficulties[level - 1]['specialCase'] == 'special-8heighttube' ? 8 : 4)) {
+			//loops through the height of the tube
+			if (tube.children[Number(i) + 1].children.length > 0) {
+				//there is a ball in that position
+				if (!topBallPosition) topBallPosition = tube.children[Number(i) + 1].children[0]
+			}
+		}
+
+		if (topBallPosition && topBallPosition.dataset.raised == "true") {
+			topBallPosition.style.top = '1px';
+			topBallPosition.dataset.raised = "false";
+			selectedBall = null;
+		} else {
+			if (selectedBall != undefined) {
+				console.log('second ball');
+
+				//make sure the tube isn't full
+
+				console.log(topBallPosition)
+				if (topBallPosition && topBallPosition.parentElement.classList.contains('ball1')) {
+					//the tube is full
+					//un-lift the selected ball
+					[...selectedBall.tube.children].forEach(elem => {
+						if (elem.tagName == "DIV") {
+							if (elem.children.length > 0) {
+								elem.children[0].style.top = "1px";
+								elem.children[0].dataset.raised = "false";
+							}
+						}
+					})
+					//lift the new selected ball
+					topBallPosition.style.top = `${-79 - 67 * (Number(topBallPosition.parentElement.classList[0][4]) - 1)}px`;
+					topBallPosition.dataset.raised = "true";
+					selectedBall = { color: topBallPosition.src.split('_')[1].split('.')[0], tube: tube }
+				} else {
+					//the tube isn't full
+
+					//check if the tube has at least one ball in it
+					//if so, make sure the top-most ball is the same color (if the tube isnt empty)
+
+					if (topBallPosition) {
+						//the tube has at least one ball in it
+						//the top ball's color is topBallPosition.src.split('_')[1].split('.')[0]
+						if (selectedBall.color == topBallPosition.src.split('_')[1].split('.')[0]) {
+							//find the amount of same-colored balls at the top of selected ball's tube  
+							if (getFreeTubePositions(tube) >= getBallNumFromTube(selectedBall.tube)) {
+								moveBall(selectedBall.tube, tube, getBallNumFromTube(selectedBall.tube), getTopBallColorFromTube(selectedBall.tube));
+								selectedBall = null;
+							} else {
+								moveBall(selectedBall.tube, tube, getFreeTubePositions(tube), getTopBallColorFromTube(selectedBall.tube));
+								selectedBall = null;
+							}
+						} else {
+							//do the same thing to do if the tube was full
+							//un-lift the selected ball
+							[...selectedBall.tube.children].forEach(elem => {
+								if (elem.tagName == "DIV") {
+									if (elem.children.length > 0) {
+										elem.children[0].style.top = "1px";
+										elem.children[0].dataset.raised = "false";
+									}
+								}
+							})
+							//lift the target ball
+							topBallPosition.style.top = `${-79 - 67 * (Number(topBallPosition.parentElement.classList[0][4]) - 1)}px`;
+							topBallPosition.dataset.raised = "true";
+							selectedBall = { color: topBallPosition.src.split('_')[1].split('.')[0], tube: tube }
+						}
+					} else {
+						moveBall(selectedBall.tube, tube, getBallNumFromTube(selectedBall.tube), getTopBallColorFromTube(selectedBall.tube));
+						selectedBall = null;
+					}
+				}
+
+
+				return;
+			}
+			if (topBallPosition) {
+				topBallPosition.style.top = `${-79 - 67 * (Number(topBallPosition.parentElement.classList[0][4]) - 1)}px`;
+				//topballPosition would be an html img element, with a class of ball and a src of its color.
+				//topballposition's parent would be a div with a class of "ball1," "ball2," etc.
+				//topballposition's parent determines the position of the ball. If it's ball1, the top should be -79px.
+				//if its ball2, then -79px - 67px.
+				//if its ball[n], then -79px - 67(n)px.
+				topBallPosition.dataset.raised = "true";
+			}
+			if (topBallPosition) selectedBall = { color: topBallPosition.src.split('_')[1].split('.')[0], tube: tube }
+		}
+	})
+})
+$('.topbarbtn.home').addEventListener('click', e => {
+
 })
 
 newGame(10)
